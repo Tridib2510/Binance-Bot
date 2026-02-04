@@ -15,7 +15,7 @@ A CLI and web-based bot with AI assistant for placing orders on Binance Futures 
 
 1. Install dependencies:
 ```bash
-pip install -r requirements.txt
+uv add -r requirements.txt
 ```
 
 2. Get Binance Testnet API credentials:
