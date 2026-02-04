@@ -1,0 +1,8 @@
+langchain
+langchain_classic
+langchain_community
+langchain-groq
+python-dotenv
+python-binance
+streamlit
+pytest
