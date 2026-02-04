@@ -1,10 +1,14 @@
 import os
+import logging
 from typing import Optional
 
 from binance_client import BinanceFuturesClient, OrderRequest
 from langchain_core.tools import tool
 from dotenv import load_dotenv
 
+from logger import setup_logger
+
+logger = setup_logger(__name__)
 load_dotenv()
 
 
@@ -13,6 +17,9 @@ def get_client() -> BinanceFuturesClient:
     api_secret = os.getenv("BINANCE_API_SECRET")
 
     if not api_key or not api_secret:
+        logger.error(
+            "BINANCE_API_KEY and BINANCE_API_SECRET environment variables are required"
+        )
         raise ValueError(
             "BINANCE_API_KEY and BINANCE_API_SECRET environment variables are required"
         )
@@ -33,6 +40,8 @@ def place_market_order(symbol: str, side: str, quantity: float) -> str:
     Returns:
         Order response details including orderId, status, executedQty, avgPrice
     """
+    logger.info(f"Tool invoked: place_market_order({symbol}, {side}, {quantity})")
+
     try:
         client = get_client()
         order = OrderRequest(
@@ -46,6 +55,9 @@ def place_market_order(symbol: str, side: str, quantity: float) -> str:
 
         if response["success"]:
             data = response["data"]
+            logger.info(
+                f"Market order placed successfully. Order ID: {data.get('orderId')}"
+            )
             return (
                 f"✅ MARKET order placed successfully!\n"
                 f"Order ID: {data.get('orderId', 'N/A')}\n"
@@ -58,12 +70,16 @@ def place_market_order(symbol: str, side: str, quantity: float) -> str:
             )
         else:
             error = response["error"]
+            logger.error(
+                f"Market order failed: {error.get('message')} (code: {error.get('code')})"
+            )
             return (
                 f"❌ Order failed!\n"
                 f"Error Code: {error.get('code', 'N/A')}\n"
                 f"Error Message: {error.get('message', 'N/A')}"
             )
     except Exception as e:
+        logger.error(f"Error placing market order: {str(e)}")
         return f"❌ Error placing order: {str(e)}"
 
 
@@ -81,6 +97,10 @@ def place_limit_order(symbol: str, side: str, quantity: float, price: float) -> 
     Returns:
         Order response details including orderId, status, executedQty, avgPrice
     """
+    logger.info(
+        f"Tool invoked: place_limit_order({symbol}, {side}, {quantity}, {price})"
+    )
+
     try:
         client = get_client()
         order = OrderRequest(
@@ -95,6 +115,9 @@ def place_limit_order(symbol: str, side: str, quantity: float, price: float) -> 
 
         if response["success"]:
             data = response["data"]
+            logger.info(
+                f"Limit order placed successfully. Order ID: {data.get('orderId')}"
+            )
             return (
                 f"✅ LIMIT order placed successfully!\n"
                 f"Order ID: {data.get('orderId', 'N/A')}\n"
@@ -108,12 +131,16 @@ def place_limit_order(symbol: str, side: str, quantity: float, price: float) -> 
             )
         else:
             error = response["error"]
+            logger.error(
+                f"Limit order failed: {error.get('message')} (code: {error.get('code')})"
+            )
             return (
                 f"❌ Order failed!\n"
                 f"Error Code: {error.get('code', 'N/A')}\n"
                 f"Error Message: {error.get('message', 'N/A')}"
             )
     except Exception as e:
+        logger.error(f"Error placing limit order: {str(e)}")
         return f"❌ Error placing order: {str(e)}"
 
 
@@ -125,9 +152,12 @@ def get_account_balance() -> str:
     Returns:
         Account balance information including available balance and asset details
     """
+    logger.info("Tool invoked: get_account_balance()")
+
     try:
         client = get_client()
         account_info = client.client.futures_account()
+        logger.debug("Account info retrieved successfully")
 
         balance_info = []
         for balance in account_info.get("assets", []):
@@ -139,11 +169,16 @@ def get_account_balance() -> str:
                 )
 
         if balance_info:
+            logger.info(
+                f"Account balance retrieved: {len(balance_info)} assets with non-zero balance"
+            )
             return "📊 Account Balance:\n\n" + "\n\n".join(balance_info)
         else:
+            logger.warning("No balance found in account")
             return "No balance found in account."
 
     except Exception as e:
+        logger.error(f"Error fetching account balance: {str(e)}")
         return f"❌ Error fetching account balance: {str(e)}"
 
 
@@ -158,13 +193,17 @@ def get_position_info(symbol: str) -> str:
     Returns:
         Position details including position size, entry price, unrealized profit/loss
     """
+    logger.info(f"Tool invoked: get_position_info({symbol})")
+
     try:
         client = get_client()
         positions = client.client.futures_position_information(symbol=symbol.upper())
+        logger.debug(f"Position info retrieved for {symbol}")
 
         if positions:
             pos = positions[0]
             if float(pos["positionAmt"]) != 0:
+                logger.info(f"Position found for {symbol}: {pos['positionAmt']} units")
                 return (
                     f"📈 Position Information for {pos['symbol']}:\n"
                     f"Position Size: {pos['positionAmt']}\n"
@@ -174,12 +213,16 @@ def get_position_info(symbol: str) -> str:
                     f"Leverage: {pos['leverage']}"
                 )
             else:
+                logger.info(f"No open position for {symbol}")
                 return f"No open position for {symbol}"
         else:
+            logger.warning(f"No position information found for {symbol}")
             return f"No position information found for {symbol}"
 
     except Exception as e:
+        logger.error(f"Error fetching position info: {str(e)}")
         return f"❌ Error fetching position info: {str(e)}"
 
 
 tools = [place_market_order, place_limit_order, get_account_balance, get_position_info]
+logger.info(f"Binance tools loaded: {len(tools)} tools available")

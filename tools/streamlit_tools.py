@@ -1,8 +1,11 @@
-import os
+import logging
 from typing import Optional
 
 from binance_client import BinanceFuturesClient, OrderRequest
 from langchain_core.tools import tool
+from logger import setup_logger
+
+logger = setup_logger(__name__)
 
 
 def get_client(api_key: str, api_secret: str) -> BinanceFuturesClient:
@@ -26,6 +29,8 @@ def place_market_order(
     Returns:
         Order response details including orderId, status, executedQty, avgPrice
     """
+    logger.info(f"Tool invoked: place_market_order({symbol}, {side}, {quantity})")
+
     try:
         client = get_client(api_key, api_secret)
         order = OrderRequest(
@@ -39,6 +44,9 @@ def place_market_order(
 
         if response["success"]:
             data = response["data"]
+            logger.info(
+                f"Market order placed successfully. Order ID: {data.get('orderId')}"
+            )
             return (
                 f"✅ MARKET order placed successfully!\n"
                 f"Order ID: {data.get('orderId', 'N/A')}\n"
@@ -51,12 +59,16 @@ def place_market_order(
             )
         else:
             error = response["error"]
+            logger.error(
+                f"Market order failed: {error.get('message')} (code: {error.get('code')})"
+            )
             return (
                 f"❌ Order failed!\n"
                 f"Error Code: {error.get('code', 'N/A')}\n"
                 f"Error Message: {error.get('message', 'N/A')}"
             )
     except Exception as e:
+        logger.error(f"Error placing market order: {str(e)}")
         return f"❌ Error placing order: {str(e)}"
 
 
@@ -78,6 +90,10 @@ def place_limit_order(
     Returns:
         Order response details including orderId, status, executedQty, avgPrice
     """
+    logger.info(
+        f"Tool invoked: place_limit_order({symbol}, {side}, {quantity}, {price})"
+    )
+
     try:
         client = get_client(api_key, api_secret)
         order = OrderRequest(
@@ -92,6 +108,9 @@ def place_limit_order(
 
         if response["success"]:
             data = response["data"]
+            logger.info(
+                f"Limit order placed successfully. Order ID: {data.get('orderId')}"
+            )
             return (
                 f"✅ LIMIT order placed successfully!\n"
                 f"Order ID: {data.get('orderId', 'N/A')}\n"
@@ -105,12 +124,16 @@ def place_limit_order(
             )
         else:
             error = response["error"]
+            logger.error(
+                f"Limit order failed: {error.get('message')} (code: {error.get('code')})"
+            )
             return (
                 f"❌ Order failed!\n"
                 f"Error Code: {error.get('code', 'N/A')}\n"
                 f"Error Message: {error.get('message', 'N/A')}"
             )
     except Exception as e:
+        logger.error(f"Error placing limit order: {str(e)}")
         return f"❌ Error placing order: {str(e)}"
 
 
@@ -126,9 +149,12 @@ def get_account_balance(api_key: str, api_secret: str) -> str:
     Returns:
         Account balance information including available balance and asset details
     """
+    logger.info("Tool invoked: get_account_balance()")
+
     try:
         client = get_client(api_key, api_secret)
         account_info = client.client.futures_account()
+        logger.debug("Account info retrieved successfully")
 
         balance_info = []
         for balance in account_info.get("assets", []):
@@ -140,11 +166,16 @@ def get_account_balance(api_key: str, api_secret: str) -> str:
                 )
 
         if balance_info:
+            logger.info(
+                f"Account balance retrieved: {len(balance_info)} assets with non-zero balance"
+            )
             return "📊 Account Balance:\n\n" + "\n\n".join(balance_info)
         else:
+            logger.warning("No balance found in account")
             return "No balance found in account."
 
     except Exception as e:
+        logger.error(f"Error fetching account balance: {str(e)}")
         return f"❌ Error fetching account balance: {str(e)}"
 
 
@@ -161,13 +192,17 @@ def get_position_info(symbol: str, api_key: str, api_secret: str) -> str:
     Returns:
         Position details including position size, entry price, unrealized profit/loss
     """
+    logger.info(f"Tool invoked: get_position_info({symbol})")
+
     try:
         client = get_client(api_key, api_secret)
         positions = client.client.futures_position_information(symbol=symbol.upper())
+        logger.debug(f"Position info retrieved for {symbol}")
 
         if positions:
             pos = positions[0]
             if float(pos["positionAmt"]) != 0:
+                logger.info(f"Position found for {symbol}: {pos['positionAmt']} units")
                 return (
                     f"📈 Position Information for {pos['symbol']}:\n"
                     f"Position Size: {pos['positionAmt']}\n"
@@ -177,18 +212,25 @@ def get_position_info(symbol: str, api_key: str, api_secret: str) -> str:
                     f"Leverage: {pos['leverage']}"
                 )
             else:
+                logger.info(f"No open position for {symbol}")
                 return f"No open position for {symbol}"
         else:
+            logger.warning(f"No position information found for {symbol}")
             return f"No position information found for {symbol}"
 
     except Exception as e:
+        logger.error(f"Error fetching position info: {str(e)}")
         return f"❌ Error fetching position info: {str(e)}"
 
 
+tools_list = [
+    place_market_order,
+    place_limit_order,
+    get_account_balance,
+    get_position_info,
+]
+
+
 def get_tools():
-    return [
-        place_market_order,
-        place_limit_order,
-        get_account_balance,
-        get_position_info,
-    ]
+    logger.debug(f"Streamlit tools requested: {len(tools_list)} tools")
+    return tools_list

@@ -1,7 +1,11 @@
 import os
+import logging
 from typing import Optional
 
 from binance_client import BinanceFuturesClient, OrderRequest
+from logger import setup_logger
+
+logger = setup_logger(__name__)
 
 
 class CLI:
@@ -13,10 +17,14 @@ class CLI:
         api_secret = os.getenv("BINANCE_API_SECRET")
 
         if not api_key or not api_secret:
+            logger.error(
+                "BINANCE_API_KEY and BINANCE_API_SECRET environment variables are required"
+            )
             raise ValueError(
                 "BINANCE_API_KEY and BINANCE_API_SECRET environment variables are required"
             )
 
+        logger.info("CLI client initialized successfully")
         return BinanceFuturesClient(api_key, api_secret, testnet=True)
 
     def _print_order_summary(self, order: OrderRequest):
@@ -59,6 +67,8 @@ class CLI:
         quantity: float,
         price: Optional[float] = None,
     ) -> None:
+        logger.info(f"Running CLI command: {side} {quantity} {symbol} ({order_type})")
+
         try:
             order = OrderRequest(
                 symbol=symbol.upper(),
@@ -75,6 +85,8 @@ class CLI:
             self._print_order_response(response)
 
         except ValueError as e:
+            logger.error(f"Validation error: {e}")
             print(f"\n❌ Validation Error: {e}\n")
         except Exception as e:
+            logger.error(f"Unexpected error: {e}")
             print(f"\n❌ Unexpected Error: {e}\n")

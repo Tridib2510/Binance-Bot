@@ -1,9 +1,13 @@
 import streamlit as st
+import logging
 from langchain_groq import ChatGroq
 from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
 from langchain_classic.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_classic.schema import HumanMessage, AIMessage
 from tools.streamlit_tools import get_tools
+from logger import setup_logger
+
+logger = setup_logger(__name__)
 
 
 def init_session_state():
@@ -14,9 +18,11 @@ def init_session_state():
 
 
 def create_agent(groq_api_key: str, binance_api_key: str, binance_api_secret: str):
+    logger.info(f"Creating Streamlit agent with model: llama-3.3-70b-versatile")
     llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0, api_key=groq_api_key)
 
     tools = get_tools()
+    logger.debug(f"Loaded {len(tools)} Streamlit tools")
 
     # Add API keys to each tool call
     def add_api_keys_to_agent():
@@ -69,6 +75,7 @@ def display_message(role: str, content: str):
 
 
 def main():
+    logger.info("Starting Binance Futures Trading Assistant (Streamlit)")
     st.set_page_config(
         page_title="Binance Futures Trading Assistant", page_icon="🤖", layout="wide"
     )
@@ -138,6 +145,7 @@ def main():
         display_message(message["role"], message["content"])
 
     if prompt := st.chat_input("Type your message here..."):
+        logger.debug(f"User input received: {prompt[:100]}...")
         st.session_state.messages.append({"role": "user", "content": prompt})
         display_message("user", prompt)
 
@@ -151,17 +159,24 @@ def main():
                         else:
                             chat_history.append(AIMessage(content=msg["content"]))
 
+                    logger.debug(
+                        f"Invoking agent with chat history of {len(chat_history)} messages"
+                    )
                     response = st.session_state.agent_executor.invoke(
                         {"input": prompt, "chat_history": chat_history}
                     )
 
                     assistant_response = response["output"]
+                    logger.info(
+                        f"Agent response received: {assistant_response[:100]}..."
+                    )
                     st.markdown(assistant_response)
                     st.session_state.messages.append(
                         {"role": "assistant", "content": assistant_response}
                     )
 
                 except Exception as e:
+                    logger.error(f"Error processing agent response: {str(e)}")
                     error_message = f"❌ Error: {str(e)}"
                     st.error(error_message)
                     st.session_state.messages.append(

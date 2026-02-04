@@ -135,6 +135,24 @@ pytest -v
 - Make sure to use testnet API keys, not mainnet keys
 - Streamlit UI does not require .env file - enter keys directly in sidebar
 - Tests use mocking to avoid actual API calls to Binance
+- **Proper logging** is implemented throughout the application
+
+## Logging
+
+The application includes comprehensive logging for debugging and monitoring:
+
+- **INFO level** (default): Shows general operation flow
+- **DEBUG level**: Shows detailed execution details
+- **WARNING level**: Shows retry attempts and recoverable issues
+- **ERROR level**: Shows failures and exceptions
+
+See [LOGGING.md](LOGGING.md) for detailed logging configuration and examples.
+
+### Example Log Output:
+```
+2024-02-04 13:45:30 - binance_client - INFO - Placing order: BUY 0.001 BTCUSDT (MARKET)
+2024-02-04 13:45:31 - binance_client - INFO - Order placed successfully. Order ID: 123456
+```
 
 ## Troubleshooting
 

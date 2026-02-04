@@ -4,7 +4,9 @@ from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
 from langchain_classic.prompts import ChatPromptTemplate, MessagesPlaceholder
 import os
 from dotenv import load_dotenv
+from logger import setup_logger
 
+logger = setup_logger(__name__)
 load_dotenv()
 
 
@@ -12,8 +14,10 @@ def create_agent():
     groq_api_key = os.getenv("GROQ_API_KEY")
 
     if not groq_api_key:
+        logger.error("GROQ_API_KEY environment variable is required")
         raise ValueError("GROQ_API_KEY environment variable is required")
 
+    logger.info(f"Creating Groq agent with model: llama-3.3-70b-versatile")
     llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0, api_key=groq_api_key)
 
     prompt = ChatPromptTemplate.from_messages(
@@ -51,6 +55,7 @@ Be concise and professional in your responses.""",
 
 
 def main():
+    logger.info("Starting Binance Futures Trading Assistant")
     print("🤖 Binance Futures Trading Assistant (Groq)")
     print("Type 'exit' or 'quit' to end the conversation\n")
 
@@ -61,11 +66,14 @@ def main():
         user_input = input("You: ").strip()
 
         if user_input.lower() in ["exit", "quit"]:
+            logger.info("User requested to exit")
             print("Goodbye! 👋")
             break
 
         if not user_input:
             continue
+
+        logger.debug(f"User input: {user_input}")
 
         try:
             response = agent_executor.invoke(
@@ -78,6 +86,7 @@ def main():
             chat_history.append(("ai", response["output"]))
 
         except Exception as e:
+            logger.error(f"Error processing user input: {str(e)}")
             print(f"\n❌ Error: {str(e)}\n")
 
 
